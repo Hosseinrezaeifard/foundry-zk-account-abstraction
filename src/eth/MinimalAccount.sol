@@ -14,8 +14,9 @@ contract MinimalAccount is IAccount, Ownable {
     /*////////////////////////////////////////////////////
                             ERRORS
     ////////////////////////////////////////////////////*/
-    error MinimalAccount_InvalidEntryPoint();
-
+    error MinimalAccount_NotFromEntryPoint();
+    error MinimalAccount__NotFromEntryPointOrOwner();
+    error MinimalAccount__CallFailed(bytes);
     /*////////////////////////////////////////////////////
                             STATE VARIABLES
     ////////////////////////////////////////////////////*/
@@ -26,12 +27,18 @@ contract MinimalAccount is IAccount, Ownable {
     ////////////////////////////////////////////////////*/
     modifier requireFromEntryPoint() {
         if (msg.sender != address(i_entryPoint))
-            revert MinimalAccount_InvalidEntryPoint();
+            revert MinimalAccount_NotFromEntryPoint();
+        _;
+    }
+
+    modifier requireFromEntryPointOrOwner() {
+        if (msg.sender != address(i_entryPoint) && msg.sender != owner())
+            revert MinimalAccount__NotFromEntryPointOrOwner();
         _;
     }
 
     /*////////////////////////////////////////////////////
-                            CONSTRUCTOR
+                            FUNCTIONS
     ////////////////////////////////////////////////////*/
     constructor(address entryPoint) Ownable(msg.sender) {
         i_entryPoint = entryPoint;
@@ -40,6 +47,17 @@ contract MinimalAccount is IAccount, Ownable {
     /*////////////////////////////////////////////////////
                            EXTERNAL FUNCTIONS
     ////////////////////////////////////////////////////*/
+    function execute(
+        address dest,
+        uint256 value,
+        bytes calldata funcData
+    ) external requireFromEntryPointOrOwner {
+        (bool success, bytes memory result) = dest.call{value: value}(funcData);
+        if (!success) {
+            revert MinimalAccount__CallFailed(result);
+        }
+    }
+
     function validateUserOp(
         PackedUserOperation calldata userOp,
         bytes32 userOpHash,
