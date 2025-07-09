@@ -75,7 +75,7 @@ contract MinimalAccountTest is Test {
             address(minimalAccount),
             AMOUNT
         );
-        // this variable is saying hey entrypoint contract, call our contract, then our contract call usdc
+        // this variable is saying hey entrypoint contract, call our contract, then our contract, call usdc
         bytes memory executeCallData = abi.encodeWithSelector(
             MinimalAccount.execute.selector,
             dest,
@@ -83,7 +83,11 @@ contract MinimalAccountTest is Test {
             funcData
         );
         PackedUserOperation memory userOp = sendPackedUserOp
-            .generateSignedUserOp(executeCallData, helperConfig.getConfig());
+            .generateSignedUserOp(
+                executeCallData,
+                helperConfig.getConfig(),
+                address(minimalAccount)
+            );
         bytes32 userOpHash = IEntryPoint(helperConfig.getConfig().entryPoint)
             .getUserOpHash(userOp);
         // Act
@@ -93,5 +97,82 @@ contract MinimalAccountTest is Test {
         );
         // Assert
         assertEq(actualSigner, minimalAccount.owner());
+    }
+
+    function testValidationOfUserOps() public {
+        // Arrange
+        assertEq(usdc.balanceOf(address(minimalAccount)), 0);
+        address dest = address(usdc);
+        uint256 value = 0;
+        bytes memory funcData = abi.encodeWithSelector(
+            ERC20Mock.mint.selector,
+            address(minimalAccount),
+            AMOUNT
+        );
+        // this variable is saying hey entrypoint contract, call our contract, then our contract, call usdc
+        bytes memory executeCallData = abi.encodeWithSelector(
+            MinimalAccount.execute.selector,
+            dest,
+            value,
+            funcData
+        );
+        PackedUserOperation memory userOp = sendPackedUserOp
+            .generateSignedUserOp(
+                executeCallData,
+                helperConfig.getConfig(),
+                address(minimalAccount)
+            );
+        bytes32 userOpHash = IEntryPoint(helperConfig.getConfig().entryPoint)
+            .getUserOpHash(userOp);
+        uint256 missingAccountFunds = 1e18;
+
+        // Act
+        vm.prank(helperConfig.getConfig().entryPoint);
+        uint256 validationData = minimalAccount.validateUserOp(
+            userOp,
+            userOpHash,
+            missingAccountFunds
+        );
+        // Assert
+        assertEq(validationData, 0);
+    }
+
+    function testEntryPointCanExecuteCommands() public {
+        assertEq(usdc.balanceOf(address(minimalAccount)), 0);
+        address dest = address(usdc);
+        uint256 value = 0;
+        bytes memory funcData = abi.encodeWithSelector(
+            ERC20Mock.mint.selector,
+            address(minimalAccount),
+            AMOUNT
+        );
+        // this variable is saying hey entrypoint contract, call our contract, then our contract, call usdc
+        bytes memory executeCallData = abi.encodeWithSelector(
+            MinimalAccount.execute.selector,
+            dest,
+            value,
+            funcData
+        );
+        PackedUserOperation memory userOp = sendPackedUserOp
+            .generateSignedUserOp(
+                executeCallData,
+                helperConfig.getConfig(),
+                address(minimalAccount)
+            );
+
+        vm.deal(address(minimalAccount), 1e18);
+
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+
+        // Act
+        vm.prank(randomUser);
+        IEntryPoint(helperConfig.getConfig().entryPoint).handleOps(
+            ops,
+            payable(randomUser)
+        );
+
+        // Assert
+        assertEq(usdc.balanceOf(address(minimalAccount)), AMOUNT);
     }
 }

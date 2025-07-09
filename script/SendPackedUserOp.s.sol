@@ -15,13 +15,29 @@ contract SendPackedUserOp is Script {
 
     function generateSignedUserOp(
         bytes memory callData,
-        HelperConfig.NetworkConfig memory config
+        HelperConfig.NetworkConfig memory config,
+        address minimalAccount
     ) public returns (PackedUserOperation memory) {
-        uint256 nonce = vm.getNonce(config.account);
+        uint256 nonce = vm.getNonce(minimalAccount) - 1;
         // 1. Generate the unsigned data
+        // flow is gonna be like this;
+        // 1. User signs UserOp
+        // 2. Bundler collets UserOp
+        // 3. Bundler calls Entrypoint.handleOps
+        // 4. Entrypoint calls MinimalAccount.validateUserOp
+        // 5. MinimalAccount validates signature
+        // 6. Entrypoint calls MinimalAccount.execute
+        // 7. MinimalAccount executes the actual transaction
+        // Account Abstraction way:
+        // Alice signs a PackedUserOperation
+        // sender field = Alice's MinimalAccount contract (0xAliceWallet...)
+        // EntryPoint calls Alice's MinimalAccount
+        // MinimalAccount sends USDC to Bob
+        // msg.sender in the USDC contract = 0xAliceWallet...
+
         PackedUserOperation memory userOp = _generateUnsignedUserOp(
             callData,
-            config.account,
+            minimalAccount,
             nonce
         );
 

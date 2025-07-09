@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {EntryPoint} from "lib/account-abstraction/contracts/core/EntryPoint.sol";
 
 contract HelperConfig is Script {
@@ -67,7 +67,6 @@ contract HelperConfig is Script {
             return localNetworkConfig;
         }
 
-        console2.log("Deploying mocks...");
         vm.startBroadcast(ANVIL_DEFAULT_ACCOUNT);
         EntryPoint entryPoint = new EntryPoint();
         vm.stopBroadcast();
