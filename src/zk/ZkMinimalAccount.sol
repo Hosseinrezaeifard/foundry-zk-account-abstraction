@@ -136,7 +136,9 @@ contract ZkMinimalAccount is IAccount, Ownable {
     function _validateTransaction(
         Transaction memory _transaction
     ) internal returns (bytes4 magic) {
-        // call the nonceHolder system contract to update the nonce
+        // Call nonceholder
+        // increment nonce
+        // call(x, y, z) -> system contract call
         SystemContractsCaller.systemCallWithPropagatedRevert(
             uint32(gasleft()),
             address(NONCE_HOLDER_SYSTEM_CONTRACT),
@@ -147,13 +149,13 @@ contract ZkMinimalAccount is IAccount, Ownable {
             )
         );
 
-        // check for fee to pay
+        // Check for fee to pay
         uint256 totalRequiredBalance = _transaction.totalRequiredBalance();
         if (totalRequiredBalance > address(this).balance) {
             revert ZkMinimalAccount__InsufficientBalance();
         }
 
-        // check the signature
+        // Check the signature
         bytes32 txHash = _transaction.encodeHash();
         address signer = ECDSA.recover(txHash, _transaction.signature);
         bool isValidSigner = signer == owner();
@@ -162,7 +164,6 @@ contract ZkMinimalAccount is IAccount, Ownable {
         } else {
             magic = bytes4(0);
         }
-
         return magic;
     }
 
